@@ -36,7 +36,10 @@ void _addPart(char *text, int section, int amount, char* name, char* ID, int typ
     int partlen =  0;
     UUEFile* node = NULL;
     UUEFile  nfnd;
-    w_log(LL_FUNC,"%s::addPart()", __FILE__);
+
+    if(!text) return;
+
+    w_log(LL_FUNC,"%s::_addPart()", __FILE__);
 
     begin = text;
 
@@ -63,8 +66,12 @@ void _addPart(char *text, int section, int amount, char* name, char* ID, int typ
         partlen = 3*(endstr-end-1)/4;
         if(DECODE_BYTE (end[0]) != partlen)
         {
-            if(!((*(endstr-1) == '`') && (DECODE_BYTE(end[0]) == partlen-1)))
+            if(!(((*(endstr-1) == '`') || (*(endstr+1) == '`'))&& (DECODE_BYTE(end[0]) == partlen-1)))
             {
+                /*
+                while(*endstr++ == '\r') { };
+                end = endstr-1;
+                */
                 break;
             }
         }
@@ -122,7 +129,8 @@ int scan4UUE(char* text,const char* ctl)
     float ff = 0.0;
     char *szSection = NULL;
     char *szBegin   = NULL;
-    
+
+    if(!text) return 0;
     szSection = strstr(text, "section ");
     while(szSection)
     {
@@ -177,12 +185,18 @@ int scan4UUE(char* text,const char* ctl)
         {
             if(sscanf(szBegin, "begin %o %s", &perms, name) == 2) 
             {
-                char *SPLIT = MsgGetCtrlToken((byte*)ctl,(byte*)"SPLIT");  
+                char *SPLIT = (char*)MsgGetCtrlToken((byte*)ctl,(byte*)"SPLIT");  
                 if( SPLIT )
                 {
                     w_log(LL_FUNC,"%s::scan4UUE(), SPLITed message uue detcted", __FILE__);
                     section = 10*(SPLIT[45]-'0') + SPLIT[46] - '0';
                     amount  = 10*(SPLIT[48]-'0') + SPLIT[49] - '0';
+                    if((section > amount) || (section <= 0) || (amount <=0))
+                    {
+                        w_log(LL_WARN,"Incorrect number of sections [%d/%d]",section,amount);
+                        szBegin = strstr(szBegin+1, "begin ");
+                        continue;
+                    }
                     if(amount > MAX_SECTIONS) 
                     {
                         w_log(LL_WARN,"Number of sections:%d too much for decoding",amount);
@@ -209,7 +223,7 @@ int scan4UUE(char* text,const char* ctl)
         return nRet;
     else
     {
-        char *SPLIT = MsgGetCtrlToken((byte*)ctl,(byte*)"SPLIT");  
+        char *SPLIT = (char*)MsgGetCtrlToken((byte*)ctl,(byte*)"SPLIT");  
         if( SPLIT )
         {
             w_log(LL_FUNC,"%s::scan4UUE(), SPLITed message uue detcted", __FILE__);
@@ -234,7 +248,11 @@ char* cutUUEformMsg(char *text)
 {
    int rr = 0;
    char *end = NULL;
-   char *szBegin = strstr(text, "begin ");
+   char *szBegin;
+
+   if(!text) return NULL;
+
+   szBegin = strstr(text, "begin ");
    if(!szBegin) return NULL;
     
    szBegin = strchr(szBegin, '\r');
@@ -281,7 +299,7 @@ int processMsg(HAREA hArea, dword msgNumb, int scan_cut)
    
    memset(&xmsg, 0 , sizeof(xmsg));
 
-   if (MsgReadMsg(msg, &xmsg, 0, textLen, (byte*)text, ctlen, ctl)<0) {
+   if (MsgReadMsg(msg, &xmsg, 0, textLen, (byte*)text, ctlen, (unsigned char*)ctl)<0) {
       rc = 0;
    } else {
       if(scan_cut == 0)
@@ -307,4 +325,3 @@ int processMsg(HAREA hArea, dword msgNumb, int scan_cut)
    nfree(ctl);
    return rc;
 }
-
