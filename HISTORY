@@ -1,0 +1,9 @@
+hpucode HISTORY
+
+This file describe changes in hpucode.
+
+Bugfixes after 1.0-release:
+
+- security fix: strip path from filename extracted from 'begin' uu-code line.
+
+$Id$
